@@ -1,0 +1,41 @@
+# version: "3.8" # Docker Compose v2부터는 version을 쓰지 않음, 무시만 할 뿐 문제는 없음
+
+services:
+  nginx:
+    image: nginx:1.25
+    container_name: commerce-infra-nginx
+    restart: always # 이 컨테이너는 서버 생명주기와 같음
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+    networks:
+      - commerce-infra-net
+
+  mysql:
+    image: mysql:8.0
+    container_name: commerce-mysql
+    restart: always # 이 컨테이너는 서버 생명주기와 같음
+    env_file:
+      - .env
+    volumes:
+      - ./mysql-data:/var/lib/mysql
+    ports:
+      - "127.0.0.1:3306:3306" # 서버 localhost 에서만 접근 허용
+    networks:
+      - commerce-infra-net
+
+  redis:
+    image: redis:7
+    container_name: commerce-redis
+    restart: always # 이 컨테이너는 서버 생명주기와 같음
+    ports:
+      - "127.0.0.1:6379:6379" # 서버 localhost 에서만 접근 허용
+    networks:
+      - commerce-infra-net
+
+networks:
+  commerce-infra-net:
+    name: commerce-infra-net
