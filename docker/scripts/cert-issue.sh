@@ -25,17 +25,17 @@ docker compose -f docker-compose.infra.yml up -d nginx
 # certbot: compose 파일에 정의된 서비스 이름
 # certonly: “인증서만 발급하고, 웹서버 설정은 건드리지 마라”
 docker compose -f docker-compose.certbot.yml run --rm certbot certonly \
-  # HTTP-01 ACME challenge 방식
   --webroot \
-  # certbot이 토큰 파일을 만들 디렉토리 (컨테이너에서의 경로임)
   --webroot-path=/var/www/certbot \
-  # 도메인 목록 (배열)
   "${DOMAINS[@]}" \
-  # Let’s Encrypt 약관 자동 동의
   --agree-tos \
-  # 인증서 관련 연락용 이메일
   --email "${EMAIL}" \
-  # EFF(전자프런티어재단) 홍보 메일 수신 거부
   --no-eff-email
+  # HTTP-01 ACME challenge 방식
+  # certbot이 토큰 파일을 만들 디렉토리 (컨테이너에서의 경로임)
+  # 도메인 목록 (배열)
+  # Let’s Encrypt 약관 자동 동의
+  # 인증서 관련 연락용 이메일
+  # EFF(전자프런티어재단) 홍보 메일 수신 거부
 
 docker compose -f docker-compose.infra.yml restart nginx
