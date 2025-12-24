@@ -11,3 +11,7 @@ Thumbs.db
 
 ### Docker Volume ###
 mysql-data/
+
+### certbot - 인증서 ###
+docker/certbot/conf/**
+!docker/certbot/conf/.gitkeep
