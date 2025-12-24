@@ -1,0 +1,7 @@
+# certbot은 “상시 실행 서비스”가 아니라 필요할 때만 run으로 실행
+services:
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
