@@ -32,9 +32,13 @@ pistat 은 `/proc`·`/sys`·`vcgencmd` 를 읽어야 해서 컨테이너가 아�
 ## 설치
 
 ```bash
+cd docker
+
 # 1. 비밀번호 파일 (없으면 nginx 가 기동하지 못한다)
-sudo apt install apache2-utils
-htpasswd -cB docker/nginx/.htpasswd-pistat <아이디>
+ID=원하는아이디
+read -rsp "비밀번호: " PW && echo
+docker run --rm httpd:alpine htpasswd -nbB "$ID" "$PW" > nginx/.htpasswd-pistat
+unset PW
 
 # 2. 소켓 프록시는 인프라 compose 에 포함되어 있다
 docker compose -f docker-compose.infra.yml up -d
@@ -48,6 +52,14 @@ systemctl status pistat
 ```
 
 `pi` 계정이 아니거나 저장소 위치가 다르면 유닛 파일의 `User=` 와 경로를 고친다.
+
+비밀번호는 컨테이너로 만든다. 해시 한 줄 만들자고 호스트에 웹서버 패키지를 깔 이유가
+없다. `htpasswd` 가 이미 있으면 `htpasswd -cB nginx/.htpasswd-pistat "$ID"` 로도 같은
+결과가 나온다. 계정을 더하려면 `>` 대신 `>>` 를 쓴다.
+
+nginx 는 요청마다 이 파일을 읽으므로 계정을 바꿔도 재시작이 필요 없다. 다만 편집기로
+저장하면 파일이 새 것으로 바뀌어 컨테이너가 옛 내용을 계속 볼 수 있다. `>` 리다이렉트로
+쓰거나, 편집기를 썼다면 nginx 를 재시작한다.
 
 `PISTAT_HOST` 는 도커 브리지 주소여야 한다. 컨테이너의 `127.0.0.1` 은 호스트가
 아니라서, 루프백에 바인딩하면 nginx 가 닿지 못한다. 주소는

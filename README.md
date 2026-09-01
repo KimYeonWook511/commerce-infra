@@ -55,7 +55,7 @@ docs/monitoring.md              # 모니터링 운영 문서
 | 서버에만 두는 것 | 예시 파일 | 만드는 법 |
 |---|---|---|
 | `docker/.env` | `docker/.env.example` | 복사 후 값 채우기 |
-| `docker/nginx/.htpasswd-pistat` | `docker/nginx/.htpasswd-pistat.example` | `htpasswd -cB` |
+| `docker/nginx/.htpasswd-pistat` | `docker/nginx/.htpasswd-pistat.example` | [docs/monitoring.md](docs/monitoring.md) |
 | `docker/certbot/conf/` | — | `scripts/cert-issue.sh` |
 | `docker/mysql-data/` | — | 컨테이너가 만든다 |
 | `docker/kafka-data-local/` | — | 컨테이너가 만든다 |
@@ -81,8 +81,7 @@ DNS 레코드가 없으면 ACME challenge가 실패해 인증서 전체가 발�
 cd docker
 cp .env.example .env   # MySQL 계정 값 채우기
 
-# 2. 모니터링 비밀번호 (없으면 nginx가 기동하지 못한다)
-htpasswd -cB nginx/.htpasswd-pistat <아이디>
+# 2. 모니터링 비밀번호 (없으면 nginx가 기동하지 못한다) → docs/monitoring.md
 
 # 3. 인프라 기동 (commerce-network가 이때 생성된다)
 docker compose -f docker-compose.infra.yml up -d
