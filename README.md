@@ -11,6 +11,7 @@
 | mysql | `mysql:8.0` | `127.0.0.1:3306` |
 | redis | `redis:7` | `127.0.0.1:6379` |
 | kafka | `apache/kafka:4.1.1` (KRaft 단일 노드) | `127.0.0.1:9092` |
+| docker-socket-proxy | `tecnativa/docker-socket-proxy` | `127.0.0.1:2375` |
 
 nginx를 제외한 나머지는 루프백에만 바인딩한다. 외부에서 붙으려면 SSH 터널을 쓴다.
 
@@ -30,7 +31,13 @@ docker/
 ├── nginx/
 │   ├── nginx.conf
 │   ├── conf.d/                 # 도메인별 server 블록 (http는 301 리다이렉트, https는 프록시/정적)
-│   └── html/                   # 루트 도메인 정적 페이지
+│   ├── html/                   # 루트 도메인 정적 페이지
+│   └── .htpasswd-pistat.example  # 모니터링 비밀번호 파일 예시
+├── pi-monitoring/              # 서버 모니터 (호스트에서 systemd 로 실행)
+│   ├── monitor.py
+│   ├── docker_probe.py
+│   ├── index.html
+│   └── pistat.service
 ├── certbot/
 │   ├── conf/                   # 인증서·개인키 (gitignore)
 │   └── www/                    # ACME challenge 경로
@@ -38,13 +45,27 @@ docker/
     ├── cert-issue.sh           # 최초 발급 (수동 1회)
     └── cert-renew.sh           # 갱신 (cron 대상)
 docs/cron.md                    # 인증서 자동 갱신 운영 문서
+docs/monitoring.md              # 모니터링 운영 문서
 ```
+
+## 커밋하지 않는 것
+
+자격증명과 상태 데이터는 저장소에 두지 않는다. 짝이 되는 예시 파일을 보고 서버에서 직접 만든다.
+
+| 서버에만 두는 것 | 예시 파일 | 만드는 법 |
+|---|---|---|
+| `docker/.env` | `docker/.env.example` | 복사 후 값 채우기 |
+| `docker/nginx/.htpasswd-pistat` | `docker/nginx/.htpasswd-pistat.example` | `htpasswd -cB` |
+| `docker/certbot/conf/` | — | `scripts/cert-issue.sh` |
+| `docker/mysql-data/` | — | 컨테이너가 만든다 |
+| `docker/kafka-data-local/` | — | 컨테이너가 만든다 |
 
 ## 도메인
 
 no-ip 무료 DDNS를 쓴다. 공인 IP 갱신은 공유기의 DDNS 클라이언트가 맡는다.
 
 - `kyw511.ddns.net` → nginx 정적 페이지
+- `kyw511.ddns.net/status/` → 모니터링 페이지 (비밀번호)
 - `api.kyw511.ddns.net` → 백엔드 프록시 (**현재 미사용**)
 
 인증서는 `certbot/conf/live/kyw511.ddns.net/` 하나이며 루트 도메인만 담는다.
@@ -60,17 +81,22 @@ DNS 레코드가 없으면 ACME challenge가 실패해 인증서 전체가 발�
 cd docker
 cp .env.example .env   # MySQL 계정 값 채우기
 
-# 2. 인프라 기동 (commerce-network가 이때 생성된다)
+# 2. 모니터링 비밀번호 (없으면 nginx가 기동하지 못한다)
+htpasswd -cB nginx/.htpasswd-pistat <아이디>
+
+# 3. 인프라 기동 (commerce-network가 이때 생성된다)
 docker compose -f docker-compose.infra.yml up -d
 
-# 3. SSL 인증서 최초 발급
+# 4. SSL 인증서 최초 발급
 ./scripts/cert-issue.sh
 
-# 4. 인증서 자동 갱신 cron 등록 → docs/cron.md
+# 5. 인증서 자동 갱신 cron 등록 → docs/cron.md
 
-# 5. 애플리케이션 배포 (별도 저장소)
+# 6. 모니터 등록 → docs/monitoring.md
+
+# 7. 애플리케이션 배포 (별도 저장소)
 #    컨테이너 이름 commerce-backend, 네트워크 commerce-network를 external로 참조해야
 #    nginx의 proxy_pass가 해석된다.
 ```
 
-인증서 갱신 cron 설정은 [docs/cron.md](docs/cron.md) 참고.
+인증서 갱신 cron 설정은 [docs/cron.md](docs/cron.md), 모니터링은 [docs/monitoring.md](docs/monitoring.md) 참고.
