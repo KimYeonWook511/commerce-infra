@@ -11,6 +11,7 @@ Thumbs.db
 
 ### Docker Volume ###
 mysql-data/
+kafka-data-local/
 
 ### certbot - 인증서 ###
 docker/certbot/conf/**
