@@ -13,10 +13,10 @@ RestartSec=5
 # 앞단 웹서버만 이 포트에 닿게 한다. TLS 와 비밀번호는 그쪽이 처리한다.
 #
 # 웹서버가 같은 호스트의 프로세스면 127.0.0.1 로 둔다.
-# 웹서버가 컨테이너 안에 있으면 컨테이너의 127.0.0.1 은 호스트가 아니므로
-# 도커 브리지 주소로 바꾼다. 주소는 `ip -4 addr show docker0` 로 확인한다.
+# 웹서버가 컨테이너 안에 있으면 그 컨테이너가 속한 네트워크의 게이트웨이 주소로 둔다.
+# 기본 브리지(172.17.0.1)는 다른 네트워크의 컨테이너에서 닿지 않는다.
 # 0.0.0.0 으로 열면 같은 공유기에 붙은 기기가 인증 없이 접근하게 된다.
-Environment=PISTAT_HOST=172.17.0.1
+Environment=PISTAT_HOST=172.18.0.1
 Environment=PISTAT_PORT=8088
 Environment=PISTAT_INTERVAL=5
 Environment=PISTAT_HISTORY_MIN=60
