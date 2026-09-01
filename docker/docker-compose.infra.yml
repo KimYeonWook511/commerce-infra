@@ -14,6 +14,13 @@ services:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
       - ./nginx/html:/usr/share/nginx/html:ro # 임시 index.html
+      # 모니터링 페이지 비밀번호. 파일이 없는 상태로 올리면 도커가 같은 이름의
+      # 디렉토리를 만들어 nginx 가 기동하지 못한다. htpasswd 로 먼저 만들 것.
+      - ./nginx/.htpasswd-pistat:/etc/nginx/.htpasswd-pistat:ro
+    extra_hosts:
+      # 호스트에서 도는 모니터링 프로세스로 나가는 통로.
+      # 컨테이너의 127.0.0.1 은 호스트가 아니다.
+      - "host.docker.internal:host-gateway"
     networks:
       - commerce-network
 
