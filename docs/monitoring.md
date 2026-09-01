@@ -61,6 +61,16 @@ nginx 는 요청마다 이 파일을 읽으므로 계정을 바꿔도 재시작�
 저장하면 파일이 새 것으로 바뀌어 컨테이너가 옛 내용을 계속 볼 수 있다. `>` 리다이렉트로
 쓰거나, 편집기를 썼다면 nginx 를 재시작한다.
 
+방화벽이 켜져 있으면 컨테이너에서 호스트로 가는 연결도 막힌다. nginx 가 붙을 수 있게
+그 경로만 연다. 없으면 브라우저에 504 가 뜬다.
+
+```bash
+sudo ufw allow from 172.18.0.0/16 to 172.18.0.1 port 8088 proto tcp \
+  comment 'pistat from commerce-network'
+```
+
+출발지·목적지·포트를 모두 좁혔으므로 외부나 같은 공유기의 기기에는 열리지 않는다.
+
 `PISTAT_HOST` 는 도커 브리지 주소여야 한다. 컨테이너의 `127.0.0.1` 은 호스트가
 아니라서, 루프백에 바인딩하면 nginx 가 닿지 못한다. 주소는
 `ip -4 addr show docker0` 로 확인한다.
@@ -125,6 +135,10 @@ Environment=PISTAT_GROUPS=commerce:commerce-|crocobird:crocobird-,@crocobird
 | `/api/health` | `ok` 한 단어. 인증 없이 열려 있다 |
 
 ## 노출에 대한 주의
+
+`commerce-network` 의 대역은 `docker-compose.infra.yml` 의 `ipam` 으로 고정한다. 도커가
+대역을 자동으로 고르게 두면 네트워크를 다시 만들 때 값이 바뀌어, 모니터가 바인딩한
+주소와 nginx 가 찾아가는 주소가 어긋난다.
 
 **`8088` 과 `2375` 를 포트포워딩하면 안 된다.** 둘 다 인증이 없다. 공유기에서
 여는 것은 `80` 과 `443` 뿐이어야 한다. `8088` 에 직접 닿을 수 있으면 비밀번호를
