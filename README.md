@@ -91,7 +91,7 @@ docker compose -f docker-compose.infra.yml up -d
 
 # 5. 인증서 자동 갱신 cron 등록 → docs/cron.md
 
-# 6. 모니터 등록 → docs/monitoring.md
+# 6. 모니터 등록과 방화벽 → docs/monitoring.md
 
 # 7. 애플리케이션 배포 (별도 저장소)
 #    컨테이너 이름 commerce-backend, 네트워크 commerce-network를 external로 참조해야

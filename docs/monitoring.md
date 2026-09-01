@@ -44,7 +44,12 @@ unset PW
 docker compose -f docker-compose.infra.yml up -d
 curl -s 127.0.0.1:2375/_ping     # OK 가 나오면 정상
 
-# 3. 모니터 등록
+# 3. 방화벽에서 nginx 가 모니터로 나가는 경로를 연다
+#    네트워크가 생긴 뒤라야 게이트웨이 주소가 존재한다
+sudo ufw allow from 172.18.0.0/16 to 172.18.0.1 port 8088 proto tcp \
+  comment 'pistat from commerce-network'
+
+# 4. 모니터 등록
 sudo cp pi-monitoring/pistat.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now pistat
@@ -61,15 +66,12 @@ nginx 는 요청마다 이 파일을 읽으므로 계정을 바꿔도 재시작�
 저장하면 파일이 새 것으로 바뀌어 컨테이너가 옛 내용을 계속 볼 수 있다. `>` 리다이렉트로
 쓰거나, 편집기를 썼다면 nginx 를 재시작한다.
 
-방화벽이 켜져 있으면 컨테이너에서 호스트로 가는 연결도 막힌다. nginx 가 붙을 수 있게
-그 경로만 연다. 없으면 브라우저에 504 가 뜬다.
+컨테이너에서 호스트로 가는 연결도 방화벽의 INPUT 을 거친다. 루프백이 아니라 브리지를
+타기 때문이다. 3번을 빠뜨리면 브라우저에 504 가 뜬다. 출발지·목적지·포트를 모두 좁혔으므로
+외부나 같은 공유기의 기기에는 열리지 않는다.
 
-```bash
-sudo ufw allow from 172.18.0.0/16 to 172.18.0.1 port 8088 proto tcp \
-  comment 'pistat from commerce-network'
-```
-
-출발지·목적지·포트를 모두 좁혔으므로 외부나 같은 공유기의 기기에는 열리지 않는다.
+포트가 이미 쓰이고 있지 않은지 `ss -tlnp | grep 8088` 로 확인한다. 겹치면 `PISTAT_PORT`
+를 바꾸고 방화벽 규칙과 `root.https.conf` 의 `proxy_pass` 도 같이 맞춘다.
 
 `PISTAT_HOST` 는 도커 브리지 주소여야 한다. 컨테이너의 `127.0.0.1` 은 호스트가
 아니라서, 루프백에 바인딩하면 nginx 가 닿지 못한다. 주소는
