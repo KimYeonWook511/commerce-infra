@@ -9,6 +9,10 @@ Thumbs.db
 .idea/
 .vscode/
 
+### Python ###
+__pycache__/
+*.pyc
+
 ### Docker Volume ###
 mysql-data/
 kafka-data-local/
