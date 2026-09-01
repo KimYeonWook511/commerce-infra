@@ -29,12 +29,14 @@ docker compose -f docker-compose.infra.yml up -d nginx
 docker compose -f docker-compose.certbot.yml run --rm certbot certonly \
   --webroot \
   --webroot-path=/var/www/certbot \
+  --cert-name kyw511.ddns.net \
   "${DOMAINS[@]}" \
   --agree-tos \
   --email "${EMAIL}" \
   --no-eff-email
   # HTTP-01 ACME challenge 방식
   # certbot이 토큰 파일을 만들 디렉토리 (컨테이너에서의 경로임)
+  # 저장 경로 고정 (안 주면 도메인을 줄일 때 live/<도메인>-0001 로 새 계보가 생겨 nginx가 옛 인증서를 본다)
   # 도메인 목록 (배열)
   # Let’s Encrypt 약관 자동 동의
   # 인증서 관련 연락용 이메일
