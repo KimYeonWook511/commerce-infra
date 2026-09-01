@@ -3,7 +3,9 @@ set -euo pipefail
 
 # ========== 설정 ==========
 EMAIL="kimyeonwook511@gmail.com"
-DOMAINS=(-d kyw511.ddns.net -d api.kyw511.ddns.net)
+# api 서브도메인은 no-ip 무료 플랜으로 만들 수 없어 제외했다 (호스트명 1개 제한, 와일드카드 유료).
+# 서브도메인을 확보하면 -d api.kyw511.ddns.net 를 추가하고 재발급할 것.
+DOMAINS=(-d kyw511.ddns.net)
 
 # 이 스크립트가 위치한 디렉토리
 # $0: 현재 실행 중인 스크립트의 경로 (./scripts/cert-renew.sh)
