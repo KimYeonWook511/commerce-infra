@@ -61,7 +61,7 @@ services:
       KAFKA_ADVERTISED_LISTENERS: INTERNAL://commerce-kafka:9092,EXTERNAL://localhost:19092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@commerce-kafka:9093
-      # 단일 브로커 로컬 개발용 (운영 서버에선 어떻게 설정해야하지???????????????????????????????????????????)
+      # 단일 브로커 구성이라 복제본 1개 — 브로커를 늘리면 이 값들도 함께 올려야 함
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1

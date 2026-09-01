@@ -3,7 +3,9 @@ set -euo pipefail
 
 # ========== 설정 ==========
 EMAIL="kimyeonwook511@gmail.com"
-DOMAINS=(-d kyw511.ddns.net -d api.kyw511.ddns.net)
+# api 서브도메인은 no-ip 무료 플랜으로 만들 수 없어 제외했다 (호스트명 1개 제한, 와일드카드 유료).
+# 서브도메인을 확보하면 -d api.kyw511.ddns.net 를 추가하고 재발급할 것.
+DOMAINS=(-d kyw511.ddns.net)
 
 # 이 스크립트가 위치한 디렉토리
 # $0: 현재 실행 중인 스크립트의 경로 (./scripts/cert-renew.sh)
@@ -27,12 +29,14 @@ docker compose -f docker-compose.infra.yml up -d nginx
 docker compose -f docker-compose.certbot.yml run --rm certbot certonly \
   --webroot \
   --webroot-path=/var/www/certbot \
+  --cert-name kyw511.ddns.net \
   "${DOMAINS[@]}" \
   --agree-tos \
   --email "${EMAIL}" \
   --no-eff-email
   # HTTP-01 ACME challenge 방식
   # certbot이 토큰 파일을 만들 디렉토리 (컨테이너에서의 경로임)
+  # 저장 경로 고정 (안 주면 도메인을 줄일 때 live/<도메인>-0001 로 새 계보가 생겨 nginx가 옛 인증서를 본다)
   # 도메인 목록 (배열)
   # Let’s Encrypt 약관 자동 동의
   # 인증서 관련 연락용 이메일
