@@ -1,6 +1,9 @@
 [Unit]
 Description=pistat 서버 모니터
-After=network.target
+# 바인딩할 게이트웨이 주소는 도커가 네트워크를 만든 뒤에야 생긴다.
+# 그 전에 시작되면 바인딩에 실패하는데, Restart=always 가 다시 띄운다.
+After=network.target docker.service
+Wants=docker.service
 
 [Service]
 Type=simple
