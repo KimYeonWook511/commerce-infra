@@ -33,3 +33,29 @@ commerce-infra/
 │       └── www/            # ACME challenge 경로
 └── docs/
     └── cron.md
+```
+
+---
+
+## cron 등록
+
+`crontab -e` 로 아래를 등록한다. 경로는 서버에 배치한 실제 경로로 맞춘다.
+
+```cron
+PATH=/usr/local/bin:/usr/bin:/bin
+@reboot sleep 120; /home/pi/commerce-platform/commerce-infra/docker/scripts/cert-renew.sh >> /home/pi/cert-renew.log 2>&1
+0 4 * * 1 /home/pi/commerce-platform/commerce-infra/docker/scripts/cert-renew.sh >> /home/pi/cert-renew.log 2>&1
+```
+
+- `PATH` — cron은 로그인 셸이 아니라 PATH가 거의 비어 있다. 없으면 스크립트 안의 `docker` 를 찾지 못하고 실패한다.
+- `@reboot` — cron은 꺼져 있는 동안 지나간 실행을 따라잡지 않는다. 부팅 직후 한 번 확인해 그 공백을 메운다. `sleep 120` 은 도커 데몬이 준비될 때까지 기다리는 시간.
+- 로그 리다이렉트 — cron은 실패해도 화면에 알리지 않는다. 로그가 없으면 갱신이 멈춘 것을 만료될 때까지 모른다.
+
+주 1회로 충분하다. certbot `renew` 는 만료 30일 이내인 인증서만 갱신하므로, 한두 번 걸러도 복구할 여유가 남는다.
+
+## 확인
+
+```bash
+crontab -l
+./scripts/cert-renew.sh   # 수동 실행이 에러 없이 끝나면 cron에서도 돈다
+```
