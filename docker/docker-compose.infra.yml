@@ -75,6 +75,43 @@ services:
     networks:
       - commerce-network
 
+  # 모니터링 프로세스가 도커 소켓에 직접 붙지 않게 한 겹 둔다.
+  # 소켓에 접근할 수 있으면 특권 컨테이너를 띄워 호스트를 장악할 수 있어,
+  # 소켓 접근 권한은 사실상 root 권한이다.
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy
+    container_name: docker-socket-proxy
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "127.0.0.1:2375:2375" # 루프백에만. 열면 프록시를 둔 의미가 사라진다
+    environment:
+      CONTAINERS: 1 # 목록·상세·로그가 전부 여기에 들어간다
+
+      # 나머지는 전부 잠근다
+      POST: 0       # 쓰기 금지. 컨테이너 생성/중지/삭제 불가
+      EXEC: 0       # 컨테이너 안에서 명령 실행 불가
+      IMAGES: 0
+      VOLUMES: 0
+      NETWORKS: 0
+      SERVICES: 0
+      TASKS: 0
+      SECRETS: 0
+      CONFIGS: 0
+      SWARM: 0
+      NODES: 0
+      SYSTEM: 0
+      INFO: 0
+      BUILD: 0
+      COMMIT: 0
+      PLUGINS: 0
+      DISTRIBUTION: 0
+      SESSION: 0
+      AUTH: 0
+    networks:
+      - commerce-network
+
 networks:
   commerce-network:
     name: commerce-network
