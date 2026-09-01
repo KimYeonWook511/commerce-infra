@@ -17,6 +17,10 @@ __pycache__/
 mysql-data/
 kafka-data-local/
 
+### nginx - 로그 ###
+docker/nginx/log/*
+!docker/nginx/log/.gitkeep
+
 ### nginx - 모니터링 페이지 비밀번호 ###
 docker/nginx/.htpasswd-*
 !docker/nginx/.htpasswd-*.example
