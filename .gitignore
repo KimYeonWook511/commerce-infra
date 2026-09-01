@@ -9,9 +9,17 @@ Thumbs.db
 .idea/
 .vscode/
 
+### Python ###
+__pycache__/
+*.pyc
+
 ### Docker Volume ###
 mysql-data/
 kafka-data-local/
+
+### nginx - 모니터링 페이지 비밀번호 ###
+docker/nginx/.htpasswd-*
+!docker/nginx/.htpasswd-*.example
 
 ### certbot - 인증서 ###
 docker/certbot/conf/**

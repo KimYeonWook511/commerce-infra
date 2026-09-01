@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>서버 상태</title>
+<style>
+  :root {
+    --paper:      #e7ebe9;
+    --panel:      #f3f6f4;
+    --ink:        #141a1e;
+    --muted:      #5f6b71;
+    --faint:      #8b959a;
+    --rule:       #ccd4d2;
+    --grid:       #dbe2e0;
+
+    --prussian:   #1f3a5f;
+    --verdigris:  #2e7d6f;
+    --ochre:      #b07d2b;
+    --oxide:      #a03d2b;
+    --slate:      #4c4a7a;
+
+    --kr: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+    --mono: ui-monospace, "SF Mono", "DejaVu Sans Mono", Menlo, Consolas, var(--kr), monospace;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, var(--kr), serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:     #10151a;
+      --panel:     #161c22;
+      --ink:       #e4eae8;
+      --muted:     #93a0a6;
+      --faint:     #67747a;
+      --rule:      #29333a;
+      --grid:      #1f282e;
+
+      --prussian:  #6f9fd8;
+      --verdigris: #4fbfa8;
+      --ochre:     #d8a743;
+      --oxide:     #e0705a;
+      --slate:     #9a97d8;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 28px 20px 56px;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 940px; margin: 0 auto; }
+
+  /* ---- 헤더 ---- */
+
+  header {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--ink);
+  }
+
+  h1 {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 30px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+
+  .host-meta {
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.02em;
+  }
+
+  .live {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .pip {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--verdigris);
+    flex: none;
+  }
+  .pip.beat { animation: beat 2s ease-out infinite; }
+  .pip.stale { background: var(--oxide); animation: none; }
+
+  @keyframes beat {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.25; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pip.beat { animation: none; }
+  }
+
+  /* ---- 경고 ---- */
+
+  .alert {
+    margin-top: 16px;
+    padding: 11px 14px;
+    border-left: 3px solid var(--oxide);
+    background: var(--panel);
+    font-family: var(--kr);
+    font-size: 13px;
+  }
+  .alert b { color: var(--oxide); font-weight: 600; }
+  .alert ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); }
+
+  /* ---- 그래프 ---- */
+
+  .traces { margin-top: 26px; position: relative; }
+
+  .row {
+    display: grid;
+    grid-template-columns: 148px 1fr;
+    align-items: stretch;
+    border-top: 1px solid var(--rule);
+  }
+  .row:first-child { border-top: none; }
+
+  .row-label {
+    padding: 12px 16px 12px 0;
+    border-right: 1px solid var(--rule);
+  }
+
+  .row-name {
+    font-family: var(--kr);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+
+  .row-value {
+    font-family: var(--serif);
+    font-size: 27px;
+    line-height: 1.15;
+    margin-top: 3px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .row-value .unit {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    margin-left: 3px;
+    letter-spacing: 0;
+  }
+
+  .row-sub {
+    font-family: var(--kr);
+    font-size: 11px;
+    color: var(--faint);
+    margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .row-chart { position: relative; }
+  .row-chart canvas { display: block; width: 100%; height: 74px; }
+
+  /* 모든 그래프가 하나의 시간축을 공유한다 */
+  .ruler {
+    display: grid;
+    grid-template-columns: 148px 1fr;
+    border-top: 1px solid var(--ink);
+  }
+  .ruler-pad { border-right: 1px solid var(--rule); }
+  .ruler-marks {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0 0;
+    font-size: 11px;
+    color: var(--faint);
+  }
+
+  .crosshair {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 1px;
+    background: var(--ink);
+    opacity: 0.34;
+    pointer-events: none;
+    display: none;
+  }
+
+  /* ---- 컨테이너 ---- */
+
+  .section-head {
+    margin-top: 38px;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--ink);
+  }
+  .section-head h2 {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 20px;
+    font-weight: 400;
+  }
+  .section-note {
+    font-family: var(--kr);
+    font-size: 12px;
+    color: var(--faint);
+    margin-left: auto;
+  }
+
+  .ctr-group { margin-top: 20px; }
+  .ctr-group:first-child { margin-top: 4px; }
+
+  .ctr-group-head {
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+    width: 100%;
+    padding: 5px 2px;
+    background: none;
+    border: 0;
+    border-bottom: 1px solid var(--rule);
+    text-align: left;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+  .ctr-group-head:hover { background: var(--panel); }
+  .ctr-group-head:focus-visible { outline: 2px solid var(--prussian); outline-offset: -2px; }
+
+  .ctr-group-caret { font-size: 9px; color: var(--faint); width: 9px; }
+  .ctr-group-name { font-family: var(--serif); font-size: 15px; }
+  .ctr-group-sum {
+    font-size: 11px;
+    color: var(--faint);
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+  }
+  .ctr-group.closed .ctr-group-body { display: none; }
+
+  .ctr {
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .ctr-head {
+    display: grid;
+    grid-template-columns: 1fr 62px 78px 96px 74px;
+    gap: 10px;
+    align-items: center;
+    width: 100%;
+    padding: 11px 2px;
+    background: none;
+    border: 0;
+    text-align: left;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+  .ctr-head:hover { background: var(--panel); }
+  .ctr-head:focus-visible { outline: 2px solid var(--prussian); outline-offset: -2px; }
+
+  .ctr-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .ctr-name b {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ctr-image {
+    font-size: 11px;
+    color: var(--faint);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex: none;
+    background: var(--faint);
+  }
+  .dot.running    { background: var(--verdigris); }
+  .dot.exited     { background: var(--faint); }
+  .dot.restarting { background: var(--ochre); }
+  .dot.unhealthy  { background: var(--oxide); }
+
+  .ctr-num {
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+    text-align: right;
+  }
+  .ctr-num small {
+    display: block;
+    font-family: var(--kr);
+    font-size: 10px;
+    color: var(--faint);
+  }
+  .ctr-flag {
+    font-family: var(--kr);
+    font-size: 11px;
+    text-align: right;
+    color: var(--muted);
+  }
+  .ctr-flag.warn { color: var(--oxide); }
+
+  .logs {
+    display: none;
+    padding: 0 2px 16px;
+  }
+  .logs.open { display: block; }
+
+  .logs-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--kr);
+    font-size: 11px;
+    color: var(--faint);
+    padding: 2px 0 8px;
+  }
+  .logs-bar button {
+    font: inherit;
+    font-family: var(--kr);
+    color: var(--muted);
+    background: none;
+    border: 1px solid var(--rule);
+    padding: 3px 9px;
+    cursor: pointer;
+  }
+  .logs-bar button:hover { border-color: var(--muted); color: var(--ink); }
+
+  .logs-body {
+    background: var(--panel);
+    border-left: 2px solid var(--rule);
+    max-height: 320px;
+    overflow: auto;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .logs-body div { display: flex; gap: 10px; }
+  .logs-body time {
+    color: var(--faint);
+    flex: none;
+    font-variant-numeric: tabular-nums;
+  }
+  .logs-body .err { color: var(--oxide); }
+
+  .empty {
+    font-family: var(--kr);
+    font-size: 13px;
+    color: var(--faint);
+    padding: 16px 2px;
+  }
+
+  /* ---- 하단 패널 ---- */
+
+  .panels {
+    margin-top: 34px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+  }
+
+  .panel-title {
+    font-family: var(--kr);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .bar {
+    margin-top: 14px;
+    height: 8px;
+    background: var(--grid);
+    position: relative;
+    overflow: hidden;
+  }
+  .bar span {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background: var(--slate);
+    width: 0;
+    transition: width 0.6s ease;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bar span { transition: none; }
+  }
+
+  .bar-legend {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 7px;
+    font-family: var(--kr);
+    font-size: 12px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  dl {
+    margin: 12px 0 0;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 7px 18px;
+    font-size: 12px;
+  }
+  dt { color: var(--faint); font-family: var(--kr); }
+  dd {
+    margin: 0;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+
+  footer {
+    margin-top: 34px;
+    padding-top: 12px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--kr);
+    font-size: 12px;
+    color: var(--faint);
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 620px) {
+    body { padding: 20px 14px 40px; }
+    .row, .ruler { grid-template-columns: 1fr; }
+    .row-label { border-right: none; padding: 12px 0 6px; }
+    .ruler-pad { display: none; }
+    .panels { grid-template-columns: 1fr; gap: 22px; }
+    h1 { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1 id="hostname">—</h1>
+    <span class="host-meta" id="model"></span>
+    <span class="live"><span class="pip" id="pip"></span><span id="livetext">연결 중</span></span>
+  </header>
+
+  <div id="alert"></div>
+
+  <div class="traces" id="traces">
+    <div class="crosshair" id="crosshair"></div>
+
+    <div class="row" data-key="cpu">
+      <div class="row-label">
+        <div class="row-name">CPU 사용률</div>
+        <div class="row-value"><span data-out="cpu">—</span><span class="unit">%</span></div>
+        <div class="row-sub" data-out="cpu-sub"></div>
+      </div>
+      <div class="row-chart"><canvas></canvas></div>
+    </div>
+
+    <div class="row" data-key="load">
+      <div class="row-label">
+        <div class="row-name">부하</div>
+        <div class="row-value"><span data-out="load">—</span></div>
+        <div class="row-sub" data-out="load-sub"></div>
+      </div>
+      <div class="row-chart"><canvas></canvas></div>
+    </div>
+
+    <div class="row" data-key="mem">
+      <div class="row-label">
+        <div class="row-name">메모리</div>
+        <div class="row-value"><span data-out="mem">—</span><span class="unit">%</span></div>
+        <div class="row-sub" data-out="mem-sub"></div>
+      </div>
+      <div class="row-chart"><canvas></canvas></div>
+    </div>
+
+    <div class="row" data-key="temp">
+      <div class="row-label">
+        <div class="row-name">CPU 온도</div>
+        <div class="row-value"><span data-out="temp">—</span><span class="unit">°C</span></div>
+        <div class="row-sub" data-out="temp-sub"></div>
+      </div>
+      <div class="row-chart"><canvas></canvas></div>
+    </div>
+
+    <div class="row" data-key="net">
+      <div class="row-label">
+        <div class="row-name">네트워크</div>
+        <div class="row-value"><span data-out="net">—</span></div>
+        <div class="row-sub" data-out="net-sub"></div>
+      </div>
+      <div class="row-chart"><canvas></canvas></div>
+    </div>
+
+    <div class="ruler">
+      <div class="ruler-pad"></div>
+      <div class="ruler-marks" id="ruler"><span>—</span><span>현재</span></div>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <h2>컨테이너</h2>
+    <span class="section-note" id="ctr-note"></span>
+  </div>
+  <div id="containers"><div class="empty">불러오는 중</div></div>
+
+  <div class="panels">
+    <section>
+      <div class="panel-title">디스크</div>
+      <div class="bar"><span id="diskbar"></span></div>
+      <div class="bar-legend">
+        <span id="diskused">—</span>
+        <span id="diskfree">—</span>
+      </div>
+    </section>
+
+    <section>
+      <div class="panel-title">장비 정보</div>
+      <dl>
+        <dt>가동 시간</dt><dd id="uptime">—</dd>
+        <dt>코어</dt><dd id="cores">—</dd>
+        <dt>스왑</dt><dd id="swap">—</dd>
+        <dt>운영체제</dt><dd id="os">—</dd>
+        <dt>커널</dt><dd id="kernel">—</dd>
+      </dl>
+    </section>
+  </div>
+
+  <footer>
+    <span id="range">—</span>
+    <span id="updated">—</span>
+  </footer>
+
+</div>
+
+<script>
+"use strict";
+
+const REFRESH = 5000;
+const state = { points: [], host: {}, throttle: null, hoverIndex: null };
+
+/* ---------- 표시 형식 ---------- */
+
+const bytes = (n) => {
+  if (!n && n !== 0) return "—";
+  const u = ["B", "KB", "MB", "GB", "TB"];
+  let i = 0;
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  return (n >= 100 || i === 0 ? Math.round(n) : n.toFixed(1)) + " " + u[i];
+};
+
+const rate = (n) => bytes(n) + "/s";
+
+const duration = (s) => {
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (d) return `${d}일 ${h}시간`;
+  if (h) return `${h}시간 ${m}분`;
+  return `${m}분`;
+};
+
+const clock = (t) => new Date(t * 1000).toLocaleTimeString("ko-KR", {
+  hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false
+});
+
+const css = (name) => getComputedStyle(document.documentElement)
+  .getPropertyValue(name).trim();
+
+/* ---------- 그래프 정의 ---------- */
+
+const TRACES = {
+  cpu:  { color: "--prussian",  pick: p => p.cpu,      max: () => 100 },
+  load: { color: "--verdigris", pick: p => p.load_pct, max: () => 100 },
+  mem:  { color: "--verdigris", pick: p => p.mem_pct,  max: () => 100 },
+  temp: { color: "--ochre",     pick: p => p.temp,     min: () => 30, max: () => 90 },
+  net:  {
+    color: "--slate",
+    pick: p => p.rx_bps,
+    second: p => p.tx_bps,
+    max: () => {
+      const peak = Math.max(
+        ...state.points.map(p => Math.max(p.rx_bps || 0, p.tx_bps || 0)), 1
+      );
+      return peak * 1.15;
+    }
+  }
+};
+
+/* ---------- 그리기 ---------- */
+
+function fit(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = Math.max(1, Math.round(rect.width * dpr));
+  canvas.height = Math.max(1, Math.round(rect.height * dpr));
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, w: rect.width, h: rect.height };
+}
+
+function line(ctx, pts, values, w, h, lo, hi, color, fill) {
+  const span = Math.max(hi - lo, 0.0001);
+  const y = (v) => h - 4 - ((Math.max(lo, Math.min(hi, v)) - lo) / span) * (h - 8);
+  const x = (i) => pts < 2 ? w : (i / (pts - 1)) * w;
+
+  if (fill) {
+    ctx.beginPath();
+    ctx.moveTo(x(0), h);
+    values.forEach((v, i) => v === null ? null : ctx.lineTo(x(i), y(v)));
+    ctx.lineTo(x(values.length - 1), h);
+    ctx.closePath();
+    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.beginPath();
+  let started = false;
+  values.forEach((v, i) => {
+    if (v === null || v === undefined) { started = false; return; }
+    started ? ctx.lineTo(x(i), y(v)) : ctx.moveTo(x(i), y(v));
+    started = true;
+  });
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.lineJoin = "round";
+  ctx.stroke();
+}
+
+function drawRow(row) {
+  const spec = TRACES[row.dataset.key];
+  const { ctx, w, h } = fit(row.querySelector("canvas"));
+  ctx.clearRect(0, 0, w, h);
+
+  ctx.strokeStyle = css("--grid");
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) {
+    const gy = Math.round((h / 4) * i) + 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, gy);
+    ctx.lineTo(w, gy);
+    ctx.stroke();
+  }
+
+  if (state.points.length < 2) return;
+
+  const lo = spec.min ? spec.min() : 0;
+  const hi = spec.max();
+  const color = css(spec.color);
+  const n = state.points.length;
+
+  if (spec.second) {
+    line(ctx, n, state.points.map(spec.second), w, h, lo, hi, css("--faint"), false);
+  }
+  line(ctx, n, state.points.map(spec.pick), w, h, lo, hi, color, true);
+
+  const idx = state.hoverIndex === null ? n - 1 : state.hoverIndex;
+  const v = spec.pick(state.points[idx]);
+  if (v !== null && v !== undefined) {
+    const span = Math.max(hi - lo, 0.0001);
+    const px = n < 2 ? w : (idx / (n - 1)) * w;
+    const py = h - 4 - ((Math.max(lo, Math.min(hi, v)) - lo) / span) * (h - 8);
+    ctx.beginPath();
+    ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+}
+
+const drawAll = () => document.querySelectorAll(".row").forEach(drawRow);
+
+/* ---------- 수치 표시 ---------- */
+
+const set = (name, text) => {
+  const el = document.querySelector(`[data-out="${name}"]`);
+  if (el) el.textContent = text;
+};
+
+function render() {
+  const pts = state.points;
+  if (!pts.length) return;
+  const idx = state.hoverIndex === null ? pts.length - 1 : state.hoverIndex;
+  const p = pts[idx];
+  const host = state.host;
+
+  set("cpu", p.cpu.toFixed(0));
+  set("cpu-sub", `코어 ${host.cores || "?"}개`);
+
+  set("load", p.load[0].toFixed(2));
+  set("load-sub", `${p.load[1].toFixed(2)} · ${p.load[2].toFixed(2)} (5분 · 15분)`);
+
+  set("mem", p.mem_pct.toFixed(0));
+  set("mem-sub", `${bytes(p.mem_used)} / ${bytes(p.mem_total)}`);
+
+  set("temp", p.temp === null ? "—" : p.temp.toFixed(0));
+  set("temp-sub", p.temp === null ? "센서 없음"
+    : p.temp >= 80 ? "스로틀링 구간"
+    : p.temp >= 70 ? "다소 높음" : "정상");
+
+  set("net", rate(p.rx_bps + p.tx_bps));
+  set("net-sub", `↓ ${rate(p.rx_bps)}   ↑ ${rate(p.tx_bps)}`);
+
+  const diskFree = p.disk_total - p.disk_used;
+  document.getElementById("diskbar").style.width = p.disk_pct + "%";
+  document.getElementById("diskused").textContent =
+    `${bytes(p.disk_used)} 사용 · ${p.disk_pct.toFixed(0)}%`;
+  document.getElementById("diskfree").textContent = `${bytes(diskFree)} 남음`;
+
+  document.getElementById("uptime").textContent = duration(p.uptime);
+  document.getElementById("cores").textContent = host.cores ? `${host.cores}개` : "—";
+  document.getElementById("swap").textContent = p.swap_total
+    ? `${bytes(p.swap_used)} / ${bytes(p.swap_total)}` : "없음";
+  document.getElementById("os").textContent = host.os || "—";
+  document.getElementById("kernel").textContent = host.kernel || "—";
+
+  document.getElementById("hostname").textContent = host.hostname || "서버";
+  document.getElementById("model").textContent = host.model || "";
+
+  const first = pts[0].t, last = pts[pts.length - 1].t;
+  document.getElementById("ruler").innerHTML =
+    `<span>${clock(first)}</span><span>${clock(last)}</span>`;
+  document.getElementById("range").textContent =
+    `최근 ${duration(last - first)} · 샘플 ${pts.length}개`;
+  document.getElementById("updated").textContent =
+    state.hoverIndex === null ? `${clock(last)} 기준` : `${clock(p.t)} 시점 고정`;
+
+  renderAlert();
+  drawAll();
+}
+
+function renderAlert() {
+  const box = document.getElementById("alert");
+  const flags = state.throttle && state.throttle.flags;
+  if (!flags || !flags.length) { box.innerHTML = ""; return; }
+  const nowFlags = flags.filter(f => !f.key.includes("since_boot"));
+  const undervolt = flags.some(f => f.key.startsWith("under_voltage"));
+  box.innerHTML =
+    `<b>${nowFlags.length ? "전원 또는 발열 문제가 발생 중입니다" : "전원 또는 발열 문제가 있었습니다"}</b>` +
+    `<ul>${flags.map(f => `<li>${f.label}</li>`).join("")}</ul>` +
+    (undervolt
+      ? `<ul><li>전압 부족은 대부분 라즈베리파이가 아니라 전원 어댑터 문제입니다. 5V 3A 어댑터와 짧고 굵은 케이블을 쓰세요.</li></ul>`
+      : "");
+}
+
+/* ---------- 시점 고정 ---------- */
+
+const traces = document.getElementById("traces");
+const crosshair = document.getElementById("crosshair");
+
+function moveCrosshair(clientX) {
+  const chart = traces.querySelector(".row-chart");
+  if (!chart || state.points.length < 2) return;
+  const rect = chart.getBoundingClientRect();
+  const ratio = (clientX - rect.left) / rect.width;
+  if (ratio < 0 || ratio > 1) { clearCrosshair(); return; }
+  state.hoverIndex = Math.round(ratio * (state.points.length - 1));
+  crosshair.style.display = "block";
+  crosshair.style.left = (clientX - traces.getBoundingClientRect().left) + "px";
+  render();
+}
+
+function clearCrosshair() {
+  state.hoverIndex = null;
+  crosshair.style.display = "none";
+  render();
+}
+
+traces.addEventListener("mousemove", (e) => moveCrosshair(e.clientX));
+traces.addEventListener("mouseleave", clearCrosshair);
+traces.addEventListener("touchmove", (e) => moveCrosshair(e.touches[0].clientX), { passive: true });
+traces.addEventListener("touchend", clearCrosshair);
+
+/* ---------- 주기적 요청 ---------- */
+
+function markLive(ok) {
+  document.getElementById("pip").className = "pip " + (ok ? "beat" : "stale");
+  document.getElementById("livetext").textContent = ok ? "실시간" : "응답 없음";
+}
+
+async function loadHistory() {
+  const d = await (await fetch("api/history")).json();
+  state.points = d.points || [];
+  state.host = d.host || {};
+  state.throttle = d.throttle;
+  markLive(true);
+  render();
+}
+
+async function tick() {
+  try {
+    const d = await (await fetch("api/status")).json();
+    if (d.now) {
+      const last = state.points[state.points.length - 1];
+      if (!last || d.now.t > last.t) {
+        state.points.push(d.now);
+        if (state.points.length > 2000) state.points.shift();
+      }
+      state.host = d.host || state.host;
+      state.throttle = d.throttle;
+      markLive(true);
+      if (state.hoverIndex === null) render();
+    }
+  } catch (err) {
+    markLive(false);
+  }
+}
+
+/* ---------- 컨테이너 ---------- */
+
+const openLogs = new Set();
+const esc = (s) => String(s == null ? "" : s)
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;");
+
+const STATE_KO = {
+  running: "실행 중", exited: "종료", restarting: "재시작 중",
+  paused: "일시정지", created: "생성됨", dead: "죽음"
+};
+
+function dotClass(c) {
+  if (c.state === "running" && c.health === "unhealthy") return "unhealthy";
+  return c.state === "running" ? "running"
+       : c.state === "restarting" ? "restarting" : "exited";
+}
+
+function flagText(c) {
+  if (c.state !== "running") {
+    const code = c.exit_code;
+    return {
+      text: code ? `종료 ${code}` : STATE_KO[c.state] || c.state,
+      warn: !!code
+    };
+  }
+  if (c.health === "unhealthy") return { text: "비정상", warn: true };
+  if (c.health === "starting")  return { text: "확인 중", warn: false };
+  if (c.health === "healthy")   return { text: "정상", warn: false };
+  if (c.restarts > 0)           return { text: `재시작 ${c.restarts}회`, warn: c.restarts > 3 };
+  return { text: "—", warn: false };
+}
+
+const closedGroups = new Set();
+
+function containerRow(c) {
+  const flag = flagText(c);
+  const running = c.state === "running";
+  const mem = running && c.mem != null
+    ? bytes(c.mem) + (c.mem_limit ? ` / ${bytes(c.mem_limit)}` : "")
+    : "—";
+  const net = running && c.rx_bps != null
+    ? `↓${rate(c.rx_bps)} ↑${rate(c.tx_bps)}` : "—";
+  return `
+    <div class="ctr">
+      <button class="ctr-head" data-id="${esc(c.full_id)}"
+              aria-expanded="${openLogs.has(c.full_id)}">
+        <span class="ctr-name">
+          <span class="dot ${dotClass(c)}"></span>
+          <span style="min-width:0">
+            <b>${esc(c.name)}</b>
+            <span class="ctr-image">${esc(c.image)}</span>
+          </span>
+        </span>
+        <span class="ctr-num">${running && c.cpu != null ? c.cpu.toFixed(0) + "%" : "—"}<small>CPU</small></span>
+        <span class="ctr-num" style="font-size:11px">${esc(mem)}<small>메모리</small></span>
+        <span class="ctr-num" style="font-size:11px">${esc(net)}<small>네트워크</small></span>
+        <span class="ctr-flag ${flag.warn ? "warn" : ""}">
+          ${esc(flag.text)}<br>
+          <span style="color:var(--faint)">${running && c.uptime ? esc(duration(c.uptime)) : ""}</span>
+        </span>
+      </button>
+      <div class="logs ${openLogs.has(c.full_id) ? "open" : ""}" data-logs="${esc(c.full_id)}"></div>
+    </div>`;
+}
+
+function groupSummary(items) {
+  if (!items.length) return "아직 없음";
+  const up = items.filter(c => c.state === "running").length;
+  const parts = [`${up}/${items.length} 실행`];
+  if (up) {
+    const cpu = items.reduce((a, c) => a + (c.cpu || 0), 0);
+    const mem = items.reduce((a, c) => a + (c.mem || 0), 0);
+    parts.push(`CPU ${cpu.toFixed(0)}%`, bytes(mem));
+  }
+  return parts.join(" · ");
+}
+
+function loadOpenLogs() {
+  openLogs.forEach(id => {
+    const pane = document.querySelector(`[data-logs="${id}"]`);
+    if (pane && !pane.dataset.loaded) fetchLogs(id);
+  });
+}
+
+function renderContainers(data) {
+  const box = document.getElementById("containers");
+  const note = document.getElementById("ctr-note");
+
+  if (!data.available) {
+    note.textContent = "";
+    box.innerHTML = `<div class="empty">도커에 연결할 수 없습니다${
+      data.error ? ` — ${esc(data.error)}` : ""}</div>`;
+    return;
+  }
+
+  const list = data.containers || [];
+  const up = list.filter(c => c.state === "running").length;
+  note.textContent = `${up}개 실행 중 · 전체 ${list.length}개`;
+
+  const declared = data.groups || [];
+
+  // 그룹을 선언하지 않았으면 예전처럼 하나의 목록으로 보여준다.
+  if (!declared.length) {
+    box.innerHTML = list.length
+      ? list.map(containerRow).join("")
+      : `<div class="empty">컨테이너가 없습니다</div>`;
+    loadOpenLogs();
+    return;
+  }
+
+  // 선언된 그룹은 비어 있어도 자리를 남긴다. 규칙에 맞지 않는 컨테이너가
+  // 조용히 다른 곳으로 빠졌을 때 그 사실이 눈에 띄게 하려는 것이다.
+  const other = data.other || "기타";
+  const buckets = new Map(declared.map(g => [g, []]));
+  list.forEach(c => {
+    const g = c.group || other;
+    if (!buckets.has(g)) buckets.set(g, []);
+    buckets.get(g).push(c);
+  });
+  if (buckets.has(other) && !buckets.get(other).length) buckets.delete(other);
+
+  box.innerHTML = [...buckets].map(([name, items]) => {
+    const closed = closedGroups.has(name);
+    return `
+      <div class="ctr-group ${closed ? "closed" : ""}">
+        <button class="ctr-group-head" data-group="${esc(name)}"
+                aria-expanded="${!closed}">
+          <span class="ctr-group-caret">${closed ? "▶" : "▼"}</span>
+          <span class="ctr-group-name">${esc(name)}</span>
+          <span class="ctr-group-sum">${esc(groupSummary(items))}</span>
+        </button>
+        <div class="ctr-group-body">${
+          items.length
+            ? items.map(containerRow).join("")
+            : `<div class="empty">컨테이너가 없습니다</div>`
+        }</div>
+      </div>`;
+  }).join("");
+
+  loadOpenLogs();
+}
+
+async function fetchLogs(id, tail = 120) {
+  const pane = document.querySelector(`[data-logs="${id}"]`);
+  if (!pane) return;
+  if (!pane.dataset.loaded) pane.innerHTML = `<div class="empty">로그를 불러오는 중</div>`;
+  try {
+    const d = await (await fetch(`api/logs?id=${encodeURIComponent(id)}&tail=${tail}`)).json();
+    if (d.error) {
+      pane.innerHTML = `<div class="empty">${esc(d.error)}</div>`;
+      return;
+    }
+    const lines = d.lines || [];
+    pane.dataset.loaded = "1";
+    pane.innerHTML = `
+      <div class="logs-bar">
+        <span>최근 ${lines.length}줄</span>
+        <button data-reload="${esc(id)}">새로고침</button>
+        <button data-more="${esc(id)}">더 보기</button>
+      </div>
+      <div class="logs-body">${
+        lines.length
+          ? lines.map(l => `<div><time>${
+              l.at ? esc(new Date(l.at).toLocaleTimeString("ko-KR", { hour12: false })) : ""
+            }</time><span class="${l.stream === "err" ? "err" : ""}">${esc(l.text)}</span></div>`).join("")
+          : '<div class="empty">로그가 없습니다</div>'
+      }</div>`;
+    const body = pane.querySelector(".logs-body");
+    if (body) body.scrollTop = body.scrollHeight;
+  } catch (err) {
+    pane.innerHTML = `<div class="empty">로그를 가져오지 못했습니다</div>`;
+  }
+}
+
+document.getElementById("containers").addEventListener("click", (e) => {
+  const reload = e.target.closest("[data-reload]");
+  if (reload) { fetchLogs(reload.dataset.reload); return; }
+
+  const more = e.target.closest("[data-more]");
+  if (more) { fetchLogs(more.dataset.more, 300); return; }
+
+  const group = e.target.closest("[data-group]");
+  if (group) {
+    const name = group.dataset.group;
+    if (closedGroups.has(name)) closedGroups.delete(name);
+    else closedGroups.add(name);
+    tickContainers();
+    return;
+  }
+
+  const head = e.target.closest(".ctr-head");
+  if (!head) return;
+  const id = head.dataset.id;
+  const pane = document.querySelector(`[data-logs="${id}"]`);
+  if (openLogs.has(id)) {
+    openLogs.delete(id);
+    pane.classList.remove("open");
+    head.setAttribute("aria-expanded", "false");
+  } else {
+    openLogs.add(id);
+    pane.classList.add("open");
+    head.setAttribute("aria-expanded", "true");
+    fetchLogs(id);
+  }
+});
+
+async function tickContainers() {
+  try {
+    renderContainers(await (await fetch("api/containers")).json());
+  } catch (err) {
+    /* 호스트 지표 갱신은 계속되어야 하므로 조용히 넘어간다 */
+  }
+}
+
+tickContainers();
+setInterval(tickContainers, REFRESH);
+
+window.addEventListener("resize", drawAll);
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", drawAll);
+
+loadHistory().catch(() => markLive(false));
+setInterval(tick, REFRESH);
+</script>
+</body>
+</html>
