@@ -32,6 +32,7 @@ docker/
 │   ├── nginx.conf
 │   ├── conf.d/                 # 도메인별 server 블록 (http는 301 리다이렉트, https는 프록시/정적)
 │   ├── html/                   # 루트 도메인 정적 페이지
+│   ├── log/                    # nginx 로그 (gitignore)
 │   └── .htpasswd-pistat.example  # 모니터링 비밀번호 파일 예시
 ├── pi-monitoring/              # 서버 모니터 (호스트에서 systemd 로 실행)
 │   ├── monitor.py
@@ -46,6 +47,7 @@ docker/
     └── cert-renew.sh           # 갱신 (cron 대상)
 docs/cron.md                    # 인증서 자동 갱신 운영 문서
 docs/monitoring.md              # 모니터링 운영 문서
+docs/fail2ban.md                # 로그인 시도 차단 문서
 ```
 
 ## 커밋하지 않는 것
@@ -56,6 +58,7 @@ docs/monitoring.md              # 모니터링 운영 문서
 |---|---|---|
 | `docker/.env` | `docker/.env.example` | 복사 후 값 채우기 |
 | `docker/nginx/.htpasswd-pistat` | `docker/nginx/.htpasswd-pistat.example` | [docs/monitoring.md](docs/monitoring.md) |
+| `docker/nginx/log/` | — | nginx 가 만든다 |
 | `docker/certbot/conf/` | — | `scripts/cert-issue.sh` |
 | `docker/mysql-data/` | — | 컨테이너가 만든다 |
 | `docker/kafka-data-local/` | — | 컨테이너가 만든다 |
@@ -93,9 +96,12 @@ docker compose -f docker-compose.infra.yml up -d
 
 # 6. 모니터 등록과 방화벽 → docs/monitoring.md
 
-# 7. 애플리케이션 배포 (별도 저장소)
+# 7. 로그 회전과 로그인 시도 차단 → docs/fail2ban.md
+
+# 8. 애플리케이션 배포 (별도 저장소)
 #    컨테이너 이름 commerce-backend, 네트워크 commerce-network를 external로 참조해야
 #    nginx의 proxy_pass가 해석된다.
 ```
 
-인증서 갱신 cron 설정은 [docs/cron.md](docs/cron.md), 모니터링은 [docs/monitoring.md](docs/monitoring.md) 참고.
+인증서 갱신 cron 설정은 [docs/cron.md](docs/cron.md), 모니터링은 [docs/monitoring.md](docs/monitoring.md),
+로그인 시도 차단은 [docs/fail2ban.md](docs/fail2ban.md) 참고.
